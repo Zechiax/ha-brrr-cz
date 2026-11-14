@@ -1,0 +1,11 @@
+{
+  "domain": "brrr_cz",
+  "name": "Brrr.cz",
+  "codeowners": ["@Zechiax"],
+  "config_flow": true,
+  "documentation": "https://github.com/Zechiax/ha-brrr-cz",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/Zechiax/ha-brrr-cz/issues",
+  "requirements": [],
+  "version": "1.0.0"
+}

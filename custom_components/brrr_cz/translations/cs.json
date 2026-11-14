@@ -1,0 +1,66 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Připojení k Brrr.cz Cloudu",
+        "description": "Vložte kompletní JSON API URL adresu z prohlížeče (DevTools -> Network) pro automatické načtení všech čidel i termostatů, NEBO zadejte jednotlivá čidla ve formátu SSID:kod oddělená čárkou.",
+        "data": {
+          "name": "Název integrace",
+          "api_url": "JSON API URL účtu (Doporučeno)",
+          "devices_list": "Jednotlivá čidla (Formát: Teplomer_UNI_2332:kod_hash)",
+          "scan_interval": "Interval aktualizace (sekundy)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Nepodařilo se připojit k serveru Brrr.cz nebo nebyla nalezena žádná čidla.",
+      "invalid_auth": "Neplatný autentizační hash (kód) nebo neplatná adresa.",
+      "invalid_url": "URL adresa musí začínat na http:// nebo https://",
+      "missing_credentials": "Vyplňte buď JSON API URL účtu, nebo seznam jednotlivých čidel.",
+      "unknown": "Došlo k neočekávané chybě."
+    },
+    "abort": {
+      "already_configured": "Tento účet nebo seznam čidel Brrr.cz je již v Home Assistantu nastaven."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Nastavení Brrr.cz",
+        "data": {
+          "scan_interval": "Interval aktualizace (sekundy)"
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "temperature": {
+        "name": "Teplota"
+      },
+      "humidity": {
+        "name": "Vlhkost"
+      },
+      "voltage": {
+        "name": "Napájecí napětí"
+      },
+      "last_report_age": {
+        "name": "Stáří posledního záznamu"
+      },
+      "target_temperature": {
+        "name": "Cílová teplota"
+      }
+    },
+    "binary_sensor": {
+      "cloud_connection": {
+        "name": "Stav v cloudu"
+      },
+      "unpaid_invoice": {
+        "name": "Faktura za expertní mód"
+      },
+      "relay_state": {
+        "name": "Relé termostatu"
+      }
+    }
+  }
+}

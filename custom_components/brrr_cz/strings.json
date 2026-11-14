@@ -1,0 +1,66 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to Brrr.cz Cloud",
+        "description": "Enter your full Brrr.cz JSON API URL (from browser DevTools) to load all devices automatically, OR provide individual SSID:kod pairs separated by commas.",
+        "data": {
+          "name": "Integration Name",
+          "api_url": "Account JSON API URL (Recommended)",
+          "devices_list": "Individual sensors (Format: Teplomer_UNI_2332:kod_hash)",
+          "scan_interval": "Update interval (seconds)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to Brrr.cz server or no devices found.",
+      "invalid_auth": "Invalid authentication hash or expired URL.",
+      "invalid_url": "URL must start with http:// or https://",
+      "missing_credentials": "Please fill in either the Account API URL or Individual sensors list.",
+      "unknown": "Unexpected error occurred."
+    },
+    "abort": {
+      "already_configured": "This Brrr.cz account or sensor list is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Brrr.cz Options",
+        "data": {
+          "scan_interval": "Update interval (seconds)"
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "temperature": {
+        "name": "Temperature"
+      },
+      "humidity": {
+        "name": "Humidity"
+      },
+      "voltage": {
+        "name": "Supply voltage"
+      },
+      "last_report_age": {
+        "name": "Last report age"
+      },
+      "target_temperature": {
+        "name": "Target temperature"
+      }
+    },
+    "binary_sensor": {
+      "cloud_connection": {
+        "name": "Cloud status"
+      },
+      "unpaid_invoice": {
+        "name": "Expert mode invoice due"
+      },
+      "relay_state": {
+        "name": "Thermostat relay"
+      }
+    }
+  }
+}
