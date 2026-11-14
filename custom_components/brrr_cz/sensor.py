@@ -19,7 +19,7 @@ from homeassistant.const import (
     UnitOfTemperature,
     UnitOfTime,
 )
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -47,7 +47,7 @@ SENSOR_TYPES: tuple[BrrrSensorEntityDescription, ...] = (
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         value_fn=lambda data: data.get("temperature"),
         exists_fn=lambda data: data.get("device_kind") == "sensor"
-        and data.get("temperature") is not None,
+        and (bool(data.get("has_temperature")) or data.get("temperature") is not None),
     ),
     BrrrSensorEntityDescription(
         key="humidity",
@@ -57,7 +57,7 @@ SENSOR_TYPES: tuple[BrrrSensorEntityDescription, ...] = (
         native_unit_of_measurement=PERCENTAGE,
         value_fn=lambda data: data.get("humidity"),
         exists_fn=lambda data: data.get("device_kind") == "sensor"
-        and data.get("humidity") is not None,
+        and (bool(data.get("has_humidity")) or data.get("humidity") is not None),
     ),
     BrrrSensorEntityDescription(
         key="voltage",
@@ -89,8 +89,7 @@ SENSOR_TYPES: tuple[BrrrSensorEntityDescription, ...] = (
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         value_fn=lambda data: data.get("target_temperature"),
-        exists_fn=lambda data: data.get("device_kind") == "relay"
-        and data.get("target_temperature") is not None,
+        exists_fn=lambda data: data.get("device_kind") == "relay",
     ),
 )
 
@@ -102,14 +101,23 @@ async def async_setup_entry(
 ) -> None:
     """Set up Brrr.cz sensors based on a config entry."""
     coordinator: BrrrDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
+    registered_entities: set[tuple[str, str]] = set()
 
-    entities: list[BrrrSensorEntity] = []
-    for ssid, device_data in coordinator.data.items():
-        for description in SENSOR_TYPES:
-            if description.exists_fn(device_data):
-                entities.append(BrrrSensorEntity(coordinator, ssid, description))
+    @callback
+    def _async_discover_entities() -> None:
+        """Discover and add new sensor entities when coordinator updates."""
+        new_entities: list[BrrrSensorEntity] = []
+        for ssid, device_data in coordinator.data.items():
+            for description in SENSOR_TYPES:
+                key = (ssid, description.key)
+                if key not in registered_entities and description.exists_fn(device_data):
+                    registered_entities.add(key)
+                    new_entities.append(BrrrSensorEntity(coordinator, ssid, description))
+        if new_entities:
+            async_add_entities(new_entities)
 
-    async_add_entities(entities)
+    _async_discover_entities()
+    entry.async_on_unload(coordinator.async_add_listener(_async_discover_entities))
 
 
 class BrrrSensorEntity(CoordinatorEntity[BrrrDataUpdateCoordinator], SensorEntity):

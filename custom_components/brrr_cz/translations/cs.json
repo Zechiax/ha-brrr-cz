@@ -10,6 +10,14 @@
           "devices_list": "Jednotlivá čidla (Formát: Teplomer_UNI_2332:kod_hash)",
           "scan_interval": "Interval aktualizace (sekundy)"
         }
+      },
+      "reauth_confirm": {
+        "title": "Obnovení přihlášení k Brrr.cz Cloudu",
+        "description": "Vaše Brrr.cz URL adresa nebo autentizační hash (kód) již není platný. Zadejte prosím aktualizované údaje.",
+        "data": {
+          "api_url": "JSON API URL účtu (Doporučeno)",
+          "devices_list": "Jednotlivá čidla (Formát: Teplomer_UNI_2332:kod_hash)"
+        }
       }
     },
     "error": {
@@ -20,7 +28,8 @@
       "unknown": "Došlo k neočekávané chybě."
     },
     "abort": {
-      "already_configured": "Tento účet nebo seznam čidel Brrr.cz je již v Home Assistantu nastaven."
+      "already_configured": "Tento účet nebo seznam čidel Brrr.cz je již v Home Assistantu nastaven.",
+      "reauth_successful": "Opětovné ověření proběhlo úspěšně."
     }
   },
   "options": {

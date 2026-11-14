@@ -1,5 +1,4 @@
 """Constants for the Brrr.cz integration."""
-from datetime import timedelta
 from typing import Final
 
 DOMAIN: Final = "brrr_cz"
@@ -17,5 +16,3 @@ SINGLE_SENSOR_ENDPOINT: Final = (
     "https://brrr.cz/brrr.php?runpagephp=afterlogin"
     "&uloha=nacti_data_jen_posledni&ssid={ssid}&kod={kod}"
 )
-
-DEFAULT_UPDATE_INTERVAL = timedelta(seconds=DEFAULT_SCAN_INTERVAL)

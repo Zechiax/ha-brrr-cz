@@ -12,7 +12,7 @@ from homeassistant.components.binary_sensor import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EntityCategory
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -47,7 +47,8 @@ BINARY_SENSOR_TYPES: tuple[BrrrBinarySensorEntityDescription, ...] = (
         entity_category=EntityCategory.DIAGNOSTIC,
         icon="mdi:cash-alert",
         is_on_fn=lambda data: bool(data.get("has_debt", False)),
-        exists_fn=lambda data: data.get("device_kind") == "sensor",
+        exists_fn=lambda data: data.get("device_kind") == "sensor"
+        and bool(data.get("has_debt_info")),
         respect_online_state=False,
     ),
     BrrrBinarySensorEntityDescription(
@@ -68,14 +69,25 @@ async def async_setup_entry(
 ) -> None:
     """Set up Brrr.cz binary sensors based on a config entry."""
     coordinator: BrrrDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
+    registered_entities: set[tuple[str, str]] = set()
 
-    entities: list[BrrrBinarySensorEntity] = []
-    for ssid, device_data in coordinator.data.items():
-        for description in BINARY_SENSOR_TYPES:
-            if description.exists_fn(device_data):
-                entities.append(BrrrBinarySensorEntity(coordinator, ssid, description))
+    @callback
+    def _async_discover_entities() -> None:
+        """Discover and add new binary sensor entities when coordinator updates."""
+        new_entities: list[BrrrBinarySensorEntity] = []
+        for ssid, device_data in coordinator.data.items():
+            for description in BINARY_SENSOR_TYPES:
+                key = (ssid, description.key)
+                if key not in registered_entities and description.exists_fn(device_data):
+                    registered_entities.add(key)
+                    new_entities.append(
+                        BrrrBinarySensorEntity(coordinator, ssid, description)
+                    )
+        if new_entities:
+            async_add_entities(new_entities)
 
-    async_add_entities(entities)
+    _async_discover_entities()
+    entry.async_on_unload(coordinator.async_add_listener(_async_discover_entities))
 
 
 class BrrrBinarySensorEntity(

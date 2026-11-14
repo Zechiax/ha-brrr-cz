@@ -10,6 +10,14 @@
           "devices_list": "Individual sensors (Format: Teplomer_UNI_2332:kod_hash)",
           "scan_interval": "Update interval (seconds)"
         }
+      },
+      "reauth_confirm": {
+        "title": "Reauthenticate Brrr.cz Cloud",
+        "description": "Your Brrr.cz URL or authentication hash is no longer valid. Please provide updated credentials.",
+        "data": {
+          "api_url": "Account JSON API URL (Recommended)",
+          "devices_list": "Individual sensors (Format: Teplomer_UNI_2332:kod_hash)"
+        }
       }
     },
     "error": {
@@ -20,7 +28,8 @@
       "unknown": "Unexpected error occurred."
     },
     "abort": {
-      "already_configured": "This Brrr.cz account or sensor list is already configured."
+      "already_configured": "This Brrr.cz account or sensor list is already configured.",
+      "reauth_successful": "Re-authentication was successful."
     }
   },
   "options": {
