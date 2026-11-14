@@ -7,7 +7,6 @@ import json
 import logging
 import re
 from typing import Any
-from urllib.parse import quote
 
 from aiohttp import ClientError
 
@@ -18,18 +17,32 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .const import (
+    BULK_ACCOUNT_ENDPOINT,
     CONF_API_URL,
-    CONF_DEVICES_LIST,
+    CONF_KOD,
     CONF_SCAN_INTERVAL,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
-    SINGLE_SENSOR_ENDPOINT,
 )
 
 _LOGGER = logging.getLogger(__name__)
 
-# Regex to extract 'kod' hash from chartjs HTML link if present
+# Regex for 32-character hexadecimal MD5 hash ('kod')
+MD5_HASH_REGEX = re.compile(r"^[a-fA-F0-9]{32}$")
+# Regex to extract 'kod' hash from a URL or chartjs HTML link if present
 KOD_REGEX = re.compile(r"kod=([a-fA-F0-9]{32})")
+
+
+def resolve_api_url(raw_input: str | None) -> str | None:
+    """Resolve user input (32-char MD5 hash or full URL) into the bulk account API URL."""
+    cleaned = (raw_input or "").strip()
+    if not cleaned:
+        return None
+    if MD5_HASH_REGEX.fullmatch(cleaned):
+        return BULK_ACCOUNT_ENDPOINT.format(kod=cleaned)
+    if cleaned.startswith(("http://", "https://")):
+        return cleaned
+    return None
 
 
 class BrrrDataUpdateCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
@@ -64,38 +77,29 @@ class BrrrDataUpdateCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]
         if self.entry is None:
             raise ConfigEntryAuthFailed("No configuration entry available")
 
-        api_url: str | None = self.entry.data.get(CONF_API_URL)
-        devices_list: str | None = self.entry.data.get(CONF_DEVICES_LIST)
-        return await self.async_fetch_data(api_url, devices_list)
+        auth_input: str | None = (
+            self.entry.data.get(CONF_API_URL) or self.entry.data.get(CONF_KOD)
+        )
+        return await self.async_fetch_data(auth_input)
 
     async def async_fetch_data(
-        self, api_url: str | None, devices_list: str | None
+        self, auth_input: str | None
     ) -> dict[str, dict[str, Any]]:
-        """Fetch and normalize Brrr.cz data from API URL and/or individual sensor list."""
-        api_url = (api_url or "").strip()
-        devices_list = (devices_list or "").strip()
-
-        if not api_url and not devices_list:
-            raise ConfigEntryAuthFailed("No valid API URL or device list configured")
+        """Fetch and normalize Brrr.cz data from the bulk account JSON endpoint."""
+        url = resolve_api_url(auth_input)
+        if not url:
+            raise ConfigEntryAuthFailed("No valid Brrr.cz hash (kod) or API URL configured")
 
         try:
             async with asyncio.timeout(20):
-                devices: dict[str, dict[str, Any]] = {}
-                if api_url:
-                    devices.update(await self._fetch_bulk_account_url(api_url))
-                if devices_list:
-                    individual = await self._fetch_individual_devices(devices_list)
-                    for ssid, dev_data in individual.items():
-                        if ssid not in devices:
-                            devices[ssid] = dev_data
-                return devices
+                return await self._fetch_bulk_account_url(url)
         except TimeoutError as err:
             raise UpdateFailed("Timeout communicating with Brrr.cz server") from err
         except ClientError as err:
             raise UpdateFailed(f"Error communicating with Brrr.cz server: {err}") from err
 
     async def _fetch_bulk_account_url(self, url: str) -> dict[str, dict[str, Any]]:
-        """Fetch the complete account JSON (ts, hs, relay) from a single URL."""
+        """Fetch the complete account JSON (ts, hs, relay) from the bulk endpoint."""
         async with self.session.get(url) as response:
             if response.status in (401, 403):
                 raise ConfigEntryAuthFailed("Invalid authentication hash or URL")
@@ -108,72 +112,11 @@ class BrrrDataUpdateCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]
             raise UpdateFailed(f"Invalid JSON received from Brrr.cz: {err}") from err
 
         if not isinstance(raw_data, dict) or not any(
-            k in raw_data for k in ("ts", "hs", "relay", "ssid")
+            k in raw_data for k in ("ts", "hs", "relay")
         ):
             raise UpdateFailed("Unexpected JSON structure from Brrr.cz")
 
-        # Handle case where user pasted a single-sensor URL into the API URL field
-        if "ssid" in raw_data and "posledni_zaznam_teplota" in raw_data:
-            if raw_data.get("status_cislo") not in (0, "0", None):
-                raise ConfigEntryAuthFailed(
-                    f"Sensor {raw_data.get('ssid')} returned error status: {raw_data.get('status_cislo')}"
-                )
-            return self._normalize_single_sensor_payload([raw_data])
-
         return self._normalize_bulk_payload(raw_data)
-
-    async def _fetch_individual_devices(
-        self, devices_raw: str
-    ) -> dict[str, dict[str, Any]]:
-        """Fetch multiple individual sensors defined as SSID:kod pairs."""
-        pairs: list[tuple[str, str]] = []
-        for item in re.split(r"[\n,;]+", devices_raw):
-            cleaned = item.strip()
-            if not cleaned:
-                continue
-            if ":" not in cleaned:
-                raise UpdateFailed(f"Invalid format '{cleaned}', expected SSID:kod")
-            ssid, kod = cleaned.split(":", 1)
-            ssid_clean, kod_clean = ssid.strip(), kod.strip()
-            if not ssid_clean or not kod_clean:
-                raise UpdateFailed(f"Invalid format '{cleaned}', expected SSID:kod")
-            pairs.append((ssid_clean, kod_clean))
-
-        if not pairs:
-            raise UpdateFailed("No valid SSID:kod pairs found")
-
-        results: list[dict[str, Any]] = []
-        for ssid, kod in pairs:
-            url = SINGLE_SENSOR_ENDPOINT.format(
-                ssid=quote(ssid, safe=""),
-                kod=quote(kod, safe=""),
-            )
-            async with self.session.get(url) as response:
-                if response.status in (401, 403):
-                    raise ConfigEntryAuthFailed(
-                        f"Invalid authentication hash for sensor {ssid}"
-                    )
-                response.raise_for_status()
-                text_data = await response.text()
-
-            try:
-                data = json.loads(text_data)
-            except json.JSONDecodeError as err:
-                raise UpdateFailed(
-                    f"Invalid JSON received from Brrr.cz for sensor {ssid}: {err}"
-                ) from err
-
-            if not isinstance(data, dict) or not data.get("ssid"):
-                raise UpdateFailed(
-                    f"Unexpected JSON structure from Brrr.cz for sensor {ssid}"
-                )
-            if data.get("status_cislo") not in (0, "0", None):
-                raise ConfigEntryAuthFailed(
-                    f"Sensor {ssid} returned error status: {data.get('status_cislo')}"
-                )
-            results.append(data)
-
-        return self._normalize_single_sensor_payload(results)
 
     def _normalize_bulk_payload(
         self, raw_data: dict[str, Any]
@@ -300,40 +243,6 @@ class BrrrDataUpdateCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]
                 "unpaid_amount": 0.0,
             }
 
-        return devices
-
-    def _normalize_single_sensor_payload(
-        self, items: list[dict[str, Any]]
-    ) -> dict[str, dict[str, Any]]:
-        """Normalize output from the lightweight nacti_data_jen_posledni endpoint."""
-        devices: dict[str, dict[str, Any]] = {}
-        for item in items:
-            ssid = item.get("ssid")
-            if not ssid:
-                continue
-
-            is_ok = item.get("status_cislo") in (0, "0")
-            humidity_val = self._safe_float(item.get("posledni_zaznam_vlhkost"))
-            devices[ssid] = {
-                "ssid": ssid,
-                "device_kind": "sensor",
-                "name": ssid,
-                "model": "Brrr.cz Sensor",
-                "mac": None,
-                "online": is_ok,
-                "has_temperature": True,
-                "has_humidity": humidity_val is not None,
-                "has_debt_info": False,
-                "temperature": self._safe_float(item.get("posledni_zaznam_teplota")),
-                "humidity": humidity_val,
-                "voltage": self._parse_voltage(item.get("napeti_na_baterii")),
-                "last_update": item.get("posledni_zaznam_cas"),
-                "age_minutes": None,
-                "has_debt": False,
-                "unpaid_amount": 0.0,
-                "precision": None,
-                "kod": None,
-            }
         return devices
 
     @staticmethod

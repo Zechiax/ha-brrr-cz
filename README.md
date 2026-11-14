@@ -6,8 +6,8 @@ Home Assistant custom integration for [Brrr.cz](https://brrr.cz/) cloud temperat
 
 ## Features
 
-- **Account JSON API URL (Recommended)**: Automatically discovers all temperature sensors (`ts`), humidity sensors (`hs`), and thermostat relays (`relay`) in your account.
-- **Individual Sensors Mode**: Monitor specific sensors using `SSID:kod` pairs.
+- **Automatic Account Discovery**: Automatically discovers all temperature sensors (`ts`), humidity sensors (`hs`), and thermostat relays (`relay`) in your Brrr.cz account using a single bulk JSON request.
+- **Smart Authentication Input**: Enter either your 32-character MD5 account hash (`kod`) or paste the full request URL copied from browser DevTools.
 - **Entities**:
   - **Sensors**: Temperature (°C), Humidity (%), Supply Voltage (V), Last Report Age (min), Target Temperature (°C) for relays.
   - **Binary Sensors**: Cloud Status (connectivity), Expert Mode Invoice Due (problem), Thermostat Relay State (power).
@@ -33,7 +33,7 @@ Home Assistant custom integration for [Brrr.cz](https://brrr.cz/) cloud temperat
 
 1. Go to **Settings → Devices & Services → Add Integration**.
 2. Search for **Brrr.cz**.
-3. Enter either:
-   - **Account JSON API URL**: The full JSON API URL from your browser's DevTools (`Network` tab) while logged into Brrr.cz, **or**
-   - **Individual sensors**: Comma-separated `SSID:kod` pairs (e.g. `Teplomer_UNI_2332:abc123...`).
+3. Enter your **Account Hash (`kod`) or Full API URL**:
+   - Either paste just the 32-character MD5 hash (`kod`), which automatically builds `https://brrr.cz/brrr.php?runpagephp=afterlogin&kod={hash}`, **or**
+   - Paste the full JSON request URL (`https://brrr.cz/brrr.php?runpagephp=afterlogin&kod=...`) from your browser's DevTools (`Network` tab) while logged into Brrr.cz.
 4. Adjust the polling interval if desired (default: `180` seconds).

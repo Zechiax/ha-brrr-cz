@@ -15,14 +15,29 @@ from homeassistant.helpers.update_coordinator import UpdateFailed
 
 from .const import (
     CONF_API_URL,
-    CONF_DEVICES_LIST,
+    CONF_KOD,
     CONF_SCAN_INTERVAL,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
     MAX_SCAN_INTERVAL,
     MIN_SCAN_INTERVAL,
 )
-from .coordinator import BrrrDataUpdateCoordinator
+from .coordinator import (
+    KOD_REGEX,
+    MD5_HASH_REGEX,
+    BrrrDataUpdateCoordinator,
+    resolve_api_url,
+)
+
+
+def _extract_kod_or_seed(raw_input: str, resolved_url: str) -> str:
+    """Extract normalized 32-char kod hash if available, otherwise return resolved URL."""
+    cleaned = raw_input.strip()
+    if MD5_HASH_REGEX.fullmatch(cleaned):
+        return cleaned.lower()
+    if match := KOD_REGEX.search(cleaned):
+        return match.group(1).lower()
+    return resolved_url
 
 
 class BrrrConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -41,23 +56,21 @@ class BrrrConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
 
         if user_input is not None:
-            api_url = (user_input.get(CONF_API_URL) or "").strip()
-            devices_list = (user_input.get(CONF_DEVICES_LIST) or "").strip()
+            raw_kod = (user_input.get(CONF_KOD) or "").strip()
+            api_url = resolve_api_url(raw_kod)
 
-            if not api_url and not devices_list:
-                errors["base"] = "missing_credentials"
-            elif api_url and not api_url.startswith(("http://", "https://")):
-                errors[CONF_API_URL] = "invalid_url"
+            if not api_url:
+                errors[CONF_KOD] = "invalid_url"
             else:
-                unique_seed = f"{api_url}|{devices_list}" if (api_url and devices_list) else (api_url or devices_list)
+                unique_seed = _extract_kod_or_seed(raw_kod, api_url)
                 unique_hash = hashlib.md5(unique_seed.encode("utf-8")).hexdigest()[:12]
                 await self.async_set_unique_id(f"brrr_{unique_hash}")
                 self._abort_if_unique_id_configured()
 
                 cleaned_data = {
                     CONF_NAME: user_input.get(CONF_NAME, "Brrr.cz Cloud"),
+                    CONF_KOD: raw_kod,
                     CONF_API_URL: api_url,
-                    CONF_DEVICES_LIST: devices_list,
                     CONF_SCAN_INTERVAL: user_input.get(
                         CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL
                     ),
@@ -80,8 +93,7 @@ class BrrrConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         schema = vol.Schema(
             {
                 vol.Optional(CONF_NAME, default="Brrr.cz Cloud"): str,
-                vol.Optional(CONF_API_URL, default=""): str,
-                vol.Optional(CONF_DEVICES_LIST, default=""): str,
+                vol.Required(CONF_KOD, default=""): str,
                 vol.Optional(
                     CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL
                 ): vol.All(
@@ -114,18 +126,16 @@ class BrrrConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         entry = self._reauth_entry
 
         if user_input is not None and entry is not None:
-            api_url = (user_input.get(CONF_API_URL) or "").strip()
-            devices_list = (user_input.get(CONF_DEVICES_LIST) or "").strip()
+            raw_kod = (user_input.get(CONF_KOD) or "").strip()
+            api_url = resolve_api_url(raw_kod)
 
-            if not api_url and not devices_list:
-                errors["base"] = "missing_credentials"
-            elif api_url and not api_url.startswith(("http://", "https://")):
-                errors[CONF_API_URL] = "invalid_url"
+            if not api_url:
+                errors[CONF_KOD] = "invalid_url"
             else:
                 updated_data = {
                     **entry.data,
+                    CONF_KOD: raw_kod,
                     CONF_API_URL: api_url,
-                    CONF_DEVICES_LIST: devices_list,
                 }
                 try:
                     await self._async_validate_input(updated_data)
@@ -141,13 +151,13 @@ class BrrrConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         data=updated_data,
                     )
 
-        current_api_url = entry.data.get(CONF_API_URL, "") if entry else ""
-        current_devices = entry.data.get(CONF_DEVICES_LIST, "") if entry else ""
+        current_kod = ""
+        if entry is not None:
+            current_kod = entry.data.get(CONF_KOD) or entry.data.get(CONF_API_URL, "")
 
         schema = vol.Schema(
             {
-                vol.Optional(CONF_API_URL, default=current_api_url): str,
-                vol.Optional(CONF_DEVICES_LIST, default=current_devices): str,
+                vol.Required(CONF_KOD, default=current_kod): str,
             }
         )
 
@@ -161,8 +171,7 @@ class BrrrConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Validate the user input allows us to connect and fetch devices."""
         coordinator = BrrrDataUpdateCoordinator(self.hass)
         devices = await coordinator.async_fetch_data(
-            data.get(CONF_API_URL),
-            data.get(CONF_DEVICES_LIST),
+            data.get(CONF_API_URL) or data.get(CONF_KOD)
         )
         if not devices:
             raise UpdateFailed("No devices returned from Brrr.cz API")

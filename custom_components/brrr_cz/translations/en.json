@@ -3,32 +3,29 @@
     "step": {
       "user": {
         "title": "Connect to Brrr.cz Cloud",
-        "description": "Enter your full Brrr.cz JSON API URL (from browser DevTools) to load all devices automatically, OR provide individual SSID:kod pairs separated by commas.",
+        "description": "Enter your 32-character Brrr.cz account hash (kod) or paste the full JSON request URL from browser DevTools to load all sensors and thermostats automatically.",
         "data": {
           "name": "Integration Name",
-          "api_url": "Account JSON API URL (Recommended)",
-          "devices_list": "Individual sensors (Format: Teplomer_UNI_2332:kod_hash)",
+          "kod": "Account Hash (kod) or Full API URL",
           "scan_interval": "Update interval (seconds)"
         }
       },
       "reauth_confirm": {
         "title": "Reauthenticate Brrr.cz Cloud",
-        "description": "Your Brrr.cz URL or authentication hash is no longer valid. Please provide updated credentials.",
+        "description": "Your Brrr.cz authentication hash (kod) or URL is no longer valid. Please enter an updated 32-character hash or full request URL from DevTools.",
         "data": {
-          "api_url": "Account JSON API URL (Recommended)",
-          "devices_list": "Individual sensors (Format: Teplomer_UNI_2332:kod_hash)"
+          "kod": "Account Hash (kod) or Full API URL"
         }
       }
     },
     "error": {
       "cannot_connect": "Failed to connect to Brrr.cz server or no devices found.",
-      "invalid_auth": "Invalid authentication hash or expired URL.",
-      "invalid_url": "URL must start with http:// or https://",
-      "missing_credentials": "Please fill in either the Account API URL or Individual sensors list.",
+      "invalid_auth": "Invalid authentication hash (kod) or expired URL.",
+      "invalid_url": "Enter a valid 32-character MD5 hash (kod) or a full URL starting with http:// or https://.",
       "unknown": "Unexpected error occurred."
     },
     "abort": {
-      "already_configured": "This Brrr.cz account or sensor list is already configured.",
+      "already_configured": "This Brrr.cz account is already configured.",
       "reauth_successful": "Re-authentication was successful."
     }
   },
