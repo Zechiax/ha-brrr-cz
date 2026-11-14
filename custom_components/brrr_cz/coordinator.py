@@ -17,32 +17,18 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .const import (
-    BULK_ACCOUNT_ENDPOINT,
-    CONF_API_URL,
-    CONF_KOD,
+    API_ENDPOINT,
+    CONF_HASH,
     CONF_SCAN_INTERVAL,
+    CONF_USER_ID,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
 )
 
 _LOGGER = logging.getLogger(__name__)
 
-# Regex for 32-character hexadecimal MD5 hash ('kod')
-MD5_HASH_REGEX = re.compile(r"^[a-fA-F0-9]{32}$")
-# Regex to extract 'kod' hash from a URL or chartjs HTML link if present
+# Regex to extract 'kod' hash from a chartjs HTML link if present
 KOD_REGEX = re.compile(r"kod=([a-fA-F0-9]{32})")
-
-
-def resolve_api_url(raw_input: str | None) -> str | None:
-    """Resolve user input (32-char MD5 hash or full URL) into the bulk account API URL."""
-    cleaned = (raw_input or "").strip()
-    if not cleaned:
-        return None
-    if MD5_HASH_REGEX.fullmatch(cleaned):
-        return BULK_ACCOUNT_ENDPOINT.format(kod=cleaned)
-    if cleaned.startswith(("http://", "https://")):
-        return cleaned
-    return None
 
 
 class BrrrDataUpdateCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
@@ -77,43 +63,64 @@ class BrrrDataUpdateCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]
         if self.entry is None:
             raise ConfigEntryAuthFailed("No configuration entry available")
 
-        auth_input: str | None = (
-            self.entry.data.get(CONF_API_URL) or self.entry.data.get(CONF_KOD)
+        return await self.async_fetch_data(
+            self.entry.data.get(CONF_USER_ID), self.entry.data.get(CONF_HASH)
         )
-        return await self.async_fetch_data(auth_input)
 
     async def async_fetch_data(
-        self, auth_input: str | None
+        self, user_id: str | None, auth_hash: str | None
     ) -> dict[str, dict[str, Any]]:
-        """Fetch and normalize Brrr.cz data from the bulk account JSON endpoint."""
-        url = resolve_api_url(auth_input)
-        if not url:
-            raise ConfigEntryAuthFailed("No valid Brrr.cz hash (kod) or API URL configured")
+        """Fetch and normalize Brrr.cz data from the account endpoint."""
+        if not user_id or not auth_hash:
+            raise ConfigEntryAuthFailed("Brrr.cz user ID and hash are required")
 
         try:
             async with asyncio.timeout(20):
-                return await self._fetch_bulk_account_url(url)
+                return await self._fetch_account(str(user_id), str(auth_hash))
         except TimeoutError as err:
             raise UpdateFailed("Timeout communicating with Brrr.cz server") from err
         except ClientError as err:
             raise UpdateFailed(f"Error communicating with Brrr.cz server: {err}") from err
 
-    async def _fetch_bulk_account_url(self, url: str) -> dict[str, dict[str, Any]]:
-        """Fetch the complete account JSON (ts, hs, relay) from the bulk endpoint."""
-        async with self.session.get(url) as response:
+    async def _fetch_account(
+        self, user_id: str, auth_hash: str
+    ) -> dict[str, dict[str, Any]]:
+        """POST to the Brrr.cz endpoint and return the normalized device data."""
+        form = {
+            "runpagephp": "afterlogin",
+            "userid": user_id,
+            "lastdays": "1",
+            "maxvalues": "380",
+            "period": "DAY",
+            "hash": auth_hash,
+            "verze": "1",
+        }
+        async with self.session.post(API_ENDPOINT, data=form) as response:
             if response.status in (401, 403):
-                raise ConfigEntryAuthFailed("Invalid authentication hash or URL")
+                raise ConfigEntryAuthFailed("Invalid Brrr.cz user ID or hash")
+            if response.status >= 400:
+                _LOGGER.warning("Brrr.cz returned HTTP %s", response.status)
             response.raise_for_status()
             text_data = await response.text()
 
         try:
             raw_data = json.loads(text_data)
         except json.JSONDecodeError as err:
-            raise UpdateFailed(f"Invalid JSON received from Brrr.cz: {err}") from err
+            _LOGGER.warning(
+                "Brrr.cz returned non-JSON response (first 100 chars): %.100s",
+                text_data,
+            )
+            raise ConfigEntryAuthFailed(
+                "Brrr.cz returned a non-JSON response; user ID or hash may be wrong"
+            ) from err
 
         if not isinstance(raw_data, dict) or not any(
             k in raw_data for k in ("ts", "hs", "relay")
         ):
+            _LOGGER.warning(
+                "Unexpected Brrr.cz JSON structure, keys: %s",
+                list(raw_data) if isinstance(raw_data, dict) else type(raw_data),
+            )
             raise UpdateFailed("Unexpected JSON structure from Brrr.cz")
 
         return self._normalize_bulk_payload(raw_data)

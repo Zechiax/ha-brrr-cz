@@ -3,26 +3,30 @@
     "step": {
       "user": {
         "title": "Připojení k Brrr.cz Cloudu",
-        "description": "Zadejte 32znakový hash vašeho Brrr.cz účtu (parametr kod) nebo vložte kompletní JSON API URL adresu z prohlížeče (DevTools -> Network) pro automatické načtení všech čidel a termostatů.",
+        "description": "Zadejte své Brrr.cz user ID a hash. Najdete je v DevTools prohlížeče (záložka Network): POST požadavek na brrr.php obsahuje v těle userid=... a hash=...",
         "data": {
           "name": "Název integrace",
-          "kod": "Hash účtu (kod) nebo kompletní API URL",
-          "scan_interval": "Interval aktualizace (sekundy)"
+          "scan_interval": "Interval aktualizace (sekundy)",
+          "user_id": "User ID",
+          "hash": "Hash"
         }
       },
       "reauth_confirm": {
         "title": "Obnovení přihlášení k Brrr.cz Cloudu",
-        "description": "Váš autentizační hash (kod) nebo URL adresa Brrr.cz již není platná. Zadejte prosím aktualizovaný 32znakový hash nebo celou URL adresu z DevTools.",
+        "description": "Vaše přihlašovací údaje k Brrr.cz již nejsou platné. Zadejte aktualizované user ID a hash.",
         "data": {
-          "kod": "Hash účtu (kod) nebo kompletní API URL"
+          "user_id": "User ID",
+          "hash": "Hash"
         }
       }
     },
     "error": {
-      "cannot_connect": "Nepodařilo se připojit k serveru Brrr.cz nebo nebyla nalezena žádná čidla.",
-      "invalid_auth": "Neplatný autentizační hash (kód) nebo neplatná adresa.",
-      "invalid_url": "Zadejte platný 32znakový MD5 hash (kod) nebo celou URL adresu začínající na http:// či https://.",
-      "unknown": "Došlo k neočekávané chybě."
+      "cannot_connect": "Nepodařilo se připojit k serveru Brrr.cz.",
+      "invalid_auth": "Neplatné user ID nebo hash.",
+      "unknown": "Došlo k neočekávané chybě.",
+      "invalid_user_id": "User ID musí být číslo.",
+      "invalid_hash": "Hash nesmí být prázdný.",
+      "no_devices": "Přihlášení proběhlo, ale na účtu nebyla nalezena žádná čidla."
     },
     "abort": {
       "already_configured": "Tento účet Brrr.cz je již v Home Assistantu nastaven.",

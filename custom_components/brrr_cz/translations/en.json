@@ -3,26 +3,30 @@
     "step": {
       "user": {
         "title": "Connect to Brrr.cz Cloud",
-        "description": "Enter your 32-character Brrr.cz account hash (kod) or paste the full JSON request URL from browser DevTools to load all sensors and thermostats automatically.",
+        "description": "Enter your Brrr.cz user ID and hash. Find them in your browser DevTools (Network tab): look at the POST request to brrr.php, its body contains userid=... and hash=...",
         "data": {
           "name": "Integration Name",
-          "kod": "Account Hash (kod) or Full API URL",
-          "scan_interval": "Update interval (seconds)"
+          "scan_interval": "Update interval (seconds)",
+          "user_id": "User ID",
+          "hash": "Hash"
         }
       },
       "reauth_confirm": {
         "title": "Reauthenticate Brrr.cz Cloud",
-        "description": "Your Brrr.cz authentication hash (kod) or URL is no longer valid. Please enter an updated 32-character hash or full request URL from DevTools.",
+        "description": "Your Brrr.cz credentials are no longer valid. Enter an updated user ID and hash.",
         "data": {
-          "kod": "Account Hash (kod) or Full API URL"
+          "user_id": "User ID",
+          "hash": "Hash"
         }
       }
     },
     "error": {
-      "cannot_connect": "Failed to connect to Brrr.cz server or no devices found.",
-      "invalid_auth": "Invalid authentication hash (kod) or expired URL.",
-      "invalid_url": "Enter a valid 32-character MD5 hash (kod) or a full URL starting with http:// or https://.",
-      "unknown": "Unexpected error occurred."
+      "cannot_connect": "Failed to connect to Brrr.cz server.",
+      "invalid_auth": "Invalid user ID or hash.",
+      "unknown": "Unexpected error occurred.",
+      "invalid_user_id": "User ID must be a number.",
+      "invalid_hash": "Hash must not be empty.",
+      "no_devices": "Login worked, but no devices were found on this account."
     },
     "abort": {
       "already_configured": "This Brrr.cz account is already configured.",
