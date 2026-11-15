@@ -41,17 +41,6 @@ BINARY_SENSOR_TYPES: tuple[BrrrBinarySensorEntityDescription, ...] = (
         respect_online_state=False,  # Connectivity sensor itself stays available when offline
     ),
     BrrrBinarySensorEntityDescription(
-        key="unpaid_invoice",
-        translation_key="unpaid_invoice",
-        device_class=BinarySensorDeviceClass.PROBLEM,
-        entity_category=EntityCategory.DIAGNOSTIC,
-        icon="mdi:cash-alert",
-        is_on_fn=lambda data: bool(data.get("has_debt", False)),
-        exists_fn=lambda data: data.get("device_kind") == "sensor"
-        and bool(data.get("has_debt_info")),
-        respect_online_state=False,
-    ),
-    BrrrBinarySensorEntityDescription(
         key="relay_state",
         translation_key="relay_state",
         device_class=BinarySensorDeviceClass.POWER,
@@ -142,13 +131,3 @@ class BrrrBinarySensorEntity(
     def is_on(self) -> bool | None:
         """Return True if the binary sensor is on."""
         return self.entity_description.is_on_fn(self._device_data)
-
-    @property
-    def extra_state_attributes(self) -> dict[str, Any]:
-        """Return additional state attributes."""
-        data = self._device_data
-        if self.entity_description.key == "unpaid_invoice":
-            return {
-                "unpaid_amount_czk": data.get("unpaid_amount", 0.0),
-            }
-        return {}

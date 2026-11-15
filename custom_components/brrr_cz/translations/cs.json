@@ -65,9 +65,6 @@
       "cloud_connection": {
         "name": "Stav v cloudu"
       },
-      "unpaid_invoice": {
-        "name": "Faktura za expertní mód"
-      },
       "relay_state": {
         "name": "Relé termostatu"
       }

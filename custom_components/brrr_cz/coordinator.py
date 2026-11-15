@@ -140,11 +140,6 @@ class BrrrDataUpdateCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]
             voltage_raw = item.get("voltage")
             voltage_v = self._parse_voltage(voltage_raw)
 
-            has_debt_info = isinstance(item.get("dluh"), dict)
-            dluh_obj = item.get("dluh") if has_debt_info else {}
-            unpaid_amount = self._safe_float(dluh_obj.get("dluh"), 2) or 0.0
-            has_debt = dluh_obj.get("je_dluh") == "ANO"
-
             kod_match = KOD_REGEX.search(item.get("chartjs", ""))
             extracted_kod = kod_match.group(1) if kod_match else None
 
@@ -163,14 +158,11 @@ class BrrrDataUpdateCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]
                 "online": item.get("tooold") == "no" and item.get("mereni_selhalo") != "1",
                 "has_temperature": True,
                 "has_humidity": False,
-                "has_debt_info": has_debt_info,
                 "temperature": self._safe_float(raw_temp),
                 "humidity": None,
                 "voltage": voltage_v,
                 "last_update": item.get("date") or item.get("teplota_date"),
                 "age_minutes": self._calculate_age_minutes(item.get("datediff")),
-                "has_debt": has_debt,
-                "unpaid_amount": unpaid_amount,
                 "precision": item.get("prectext"),
                 "kod": extracted_kod,
             }
@@ -198,11 +190,6 @@ class BrrrDataUpdateCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]
                 else:
                     devices[ssid]["online"] = devices[ssid]["online"] or hs_online
             else:
-                has_debt_info = isinstance(item.get("dluh"), dict)
-                dluh_obj = item.get("dluh") if has_debt_info else {}
-                unpaid_amount = self._safe_float(dluh_obj.get("dluh"), 2) or 0.0
-                has_debt = dluh_obj.get("je_dluh") == "ANO"
-
                 devices[ssid] = {
                     "ssid": ssid,
                     "device_kind": "sensor",
@@ -212,14 +199,11 @@ class BrrrDataUpdateCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]
                     "online": hs_online,
                     "has_temperature": False,
                     "has_humidity": True,
-                    "has_debt_info": has_debt_info,
                     "temperature": None,
                     "humidity": humidity_val,
                     "voltage": self._parse_voltage(item.get("voltage")),
                     "last_update": item.get("date") or item.get("teplota_date"),
                     "age_minutes": self._calculate_age_minutes(item.get("datediff")),
-                    "has_debt": has_debt,
-                    "unpaid_amount": unpaid_amount,
                     "precision": item.get("prectext"),
                     "kod": None,
                 }
@@ -239,15 +223,12 @@ class BrrrDataUpdateCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]
                 "online": item.get("tooold") == "no",
                 "has_temperature": False,
                 "has_humidity": False,
-                "has_debt_info": False,
                 "relay_active": str(item.get("relaystatus")) == "1",
                 "target_temperature": self._safe_float(item.get("issmallervalue")),
                 "hysteresis": self._safe_float(item.get("hystereze")),
                 "linked_sensor_ssid": item.get("teplomer_ssid"),
                 "last_update": item.get("date_statuschecked"),
                 "age_minutes": self._calculate_age_minutes(item.get("datediff")),
-                "has_debt": False,
-                "unpaid_amount": 0.0,
             }
 
         return devices

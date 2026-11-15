@@ -65,9 +65,6 @@
       "cloud_connection": {
         "name": "Cloud status"
       },
-      "unpaid_invoice": {
-        "name": "Expert mode invoice due"
-      },
       "relay_state": {
         "name": "Thermostat relay"
       }
