@@ -65,6 +65,7 @@ SENSOR_TYPES: tuple[BrrrSensorEntityDescription, ...] = (
         device_class=SensorDeviceClass.VOLTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=UnitOfElectricPotential.VOLT,
+        suggested_display_precision=2,
         entity_category=EntityCategory.DIAGNOSTIC,
         value_fn=lambda data: data.get("voltage"),
         exists_fn=lambda data: data.get("device_kind") == "sensor"
